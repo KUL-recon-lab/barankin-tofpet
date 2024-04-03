@@ -1,0 +1,8 @@
+Sources are in src. Apart from the two BiExp… they are copied from C Recipes.
+
+I only included the Barankin bound calculator BiExpDeltaBarankinOrderJ.c but you are welcome to ask other programs (e.g. ML and MMSE estimators of the arrival time).
+
+BiExpDeltaBarankinOrderJ.c makes many checks that are not strictly needed. Even just using C, this program could be easily made more efficient but my priority was safety.
+
+Folder Test contains the executable compiled for MacPro (see Makefile), and one example of a command executed and of the program output ExampleOutput. I modified that output by adding comments in red colour in text file ExampleOutput.
+

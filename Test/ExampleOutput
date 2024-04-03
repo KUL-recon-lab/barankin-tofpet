@@ -1,0 +1,65 @@
+Barankin bound of order 4 for the smoothed bi-exponential distribution
+4 photons detected
+Prompt photon fraction 0.050000 
+      Decay time 1.000000 ns 
+      Rise time 0.010000 ns 
+Scintillation photon fraction 0.950000 
+      Decay time 20.000000 ns 
+      Rise time 5.000000 ns 
+Optical mean transit 0.179000 ns 
+Optical st. dev. transit 0.081000 ns 
+dt = 0.001000 ns , tmax = 200.000000 ns 
+Barankin time shift range:         0.0050000000 -->       100.0000000000 ns  80 steps rate         1.1317822407 
+(Min and max shift values are chosen empirically, clearly a weakness. Generally the found best shift values are small when number of photons
+is large, but larger values are found when only few photons are detected. Note however that whatever the chosen values, the calculated bounds
+ARE valid bounds, but possibly not the highest)
+
+2000 random sets of shifts are tested (seed: 90448) 
+Norm =         0.9999419704 , cdf =         0.9999419690 (both should be equal and equal to 1)
+
+
+ Relative RMSE on derivative:             0.000029
+
+ <t> =            23.969583   St. dev. =            20.709664 (values by numerical integration of pdf)
+
+ Theory: <t> =            23.982350  St. dev. =            20.763989 (exact values from analytical expressions, should be same as previous)
+
+(Norm of pdf should be 1, mean and standard deviation for first, second and third detected photons )
+ Norm of pdf(t_(1)) =             1.000000,  <t_(1)> =             7.569738   St. dev. t_(1) =             6.279133 
+
+ Norm of pdf(t_(2)) =             1.000000,  <t_(2)> =            15.617415   St. dev. t_(2) =             9.068655 
+
+ Norm of pdf(t_(3)) =             1.000000,  <t_(3)> =            26.242608   St. dev. t_(3) =            13.333874 
+
+
+ I =         0.6189090674   Cramer Rao Bound (1 photon) =         1.2711200739 ns (4 photons) =         0.6355600370 ns 
+
+ List of the shift values from which 4 are chosen randomly (ns): 
+    100.000000 
+     88.356000      78.068000      68.977000      60.945000      53.848000      47.578000      42.038000      37.143000 
+     32.818000      28.996000      25.619000      22.635000      19.999000      17.670000      15.612000      13.794000 
+     12.187000      10.767000       9.513000       8.405000       7.426000       6.561000       5.797000       5.122000 
+      4.525000       3.998000       3.532000       3.120000       2.756000       2.435000       2.151000       1.900000 
+      1.678000       1.482000       1.309000       1.156000       1.021000       0.902000       0.796000       0.703000 
+      0.621000       0.548000       0.484000       0.427000       0.377000       0.333000       0.294000       0.259000 
+      0.228000       0.201000       0.177000       0.156000       0.137000       0.121000       0.106000       0.093000 
+      0.082000       0.072000       0.063000       0.055000       0.048000       0.042000       0.037000       0.032000 
+      0.028000       0.024000       0.021000       0.018000       0.015000       0.013000       0.011000       0.009000 
+      0.007000       0.006000       0.005000       0.004000       0.003000       0.002000       0.001000 
+
+
+
+ Maximum bound (4-th order, 1 photon):        20.4011122749 ns (Barankin bound approximation)
+Shifts (ns) :    53.84800000     78.06800000     25.61900000      9.51300000  (best shifts found among the 2000 tested sets of 4 shifts)
+Eigenvalues (ns) :     6.58952625     46.44970535      1.49664677      0.21358215  (no ill-conditioning here’d but we used low order J=4 !)
+
+(Same for 4 detected photons)
+ Maximum bound (4-th order, 4 photons, 2000 trials):         6.0406498245 ns 
+Shifts (ns) :     6.56100000      3.12000000      4.52500000     17.67000000  
+Eigenvalues (ns) :     1.69102130      0.26918746      0.17221586     17.74725009  
+
+(Next figures are to check that SVD went OK)
+Maximum RMSE Error SVD =         0.0000000000 
+Maximum normalisation Error SVD =         0.0000000000 
+4 photons: Maximum RMSE Error SVD =         0.0000000000 
+4 photons: Maximum normalisation Error SVD =         0.0000000000 
