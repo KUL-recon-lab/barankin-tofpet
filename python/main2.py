@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy.integrate import quad
+from scipy.special import comb
 
 from collections.abc import Callable
 
@@ -60,36 +61,61 @@ ax.legend()
 fig.show()
 
 # %%
-num_deltas = 16  # number of deltas
-delta_max = 3.0  # max delta value
+num_sim = 200  # number of simulations
+num_possible_deltas = 200  # number of possible deltas
+num_deltas = 16  # number of possible deltas
+delta_min = 0.01  # max delta value
+delta_max = 2.0  # max delta value
 
-num_sim = 500  # number of simulations
 rcond = 1e-8  # fraction of largest singular value for pinv (rcond)
 
 upper_int_limit = 50.0  # upper integration limit
 
-num_photons = 5  # number of photons
+num_photons = 10  # number of photons
 
 # %%
+
+max_num_sim = comb(num_possible_deltas, num_deltas, exact=True)
+
+if num_sim > max_num_sim:
+    raise ValueError(
+        f"Number of simulations ({num_sim}) is larger than the number of possible combinations ({max_num_sim})"
+    )
+
 bb = np.zeros(num_sim)
 
 np.random.seed(1)
+all_possible_deltas = np.logspace(
+    np.log10(delta_min), np.log10(delta_max), num_possible_deltas
+)
+simulated_deltas = np.zeros((num_sim, num_deltas))
 
-deltas = np.sort(delta_max * np.random.rand(num_sim, num_deltas))
+t_test = np.linspace(0, upper_int_limit, 10)
 
 for i_sim in range(num_sim):
+    deltas = np.random.choice(all_possible_deltas, size=(num_deltas,))
+    deltas.sort()
+    simulated_deltas[i_sim, :] = deltas
+
     U = np.zeros((num_deltas, num_deltas))
 
     for i in range(num_deltas):
         for j in range(num_deltas):
-            integ = lambda x: integrand(x, deltas[i_sim, i], deltas[i_sim, j])
+            integ = lambda x: integrand(x, deltas[i], deltas[j])
 
-            if deltas[i_sim, i] > deltas[i_sim, j]:
-                l1 = deltas[i_sim, j]
-                l2 = deltas[i_sim, i]
+            # check whether values of integrand are reasonable
+            integ_test_values = [integ(x) for x in t_test]
+            if max(integ_test_values) > 1e10:
+                raise ValueError(
+                    f"Integrand values are too large: {max(integ_test_values)}"
+                )
+
+            if deltas[i] > deltas[j]:
+                l1 = deltas[j]
+                l2 = deltas[i]
             else:
-                l1 = deltas[i_sim, i]
-                l2 = deltas[i_sim, j]
+                l1 = deltas[i]
+                l2 = deltas[j]
 
             I1 = quad(integ, 0, l1)[0]
             I2 = quad(integ, l1, l2)[0]
@@ -104,16 +130,44 @@ for i_sim in range(num_sim):
 
     pinv_U_N = np.linalg.pinv(U_N, rcond=rcond)
 
-    bb[i_sim] = float(np.sum(deltas[i_sim, :] * (pinv_U_N @ deltas[i_sim, :])))
+    bb[i_sim] = float(np.sum(deltas * (pinv_U_N @ deltas)))
     print(f"{i_sim:04}/{num_sim:04}, {bb[i_sim]:.2E}", end="\r")
 
 print()
 
-i_sim_max = np.argmax(bb)
-print(bb[i_sim_max])
-print(deltas[i_sim_max, :])
+# %%
+# sort all bounds and used deltas
+
+i_sort = np.argsort(bb)
+bb_sorted = bb[i_sort]
+simulated_deltas_sorted = simulated_deltas[i_sort, :]
+
+print(bb_sorted[-1])
+print(simulated_deltas_sorted[-1, :])
 
 # %%
-fig2, ax2 = plt.subplots(tight_layout=True)
-ax2.hist(bb, bins=100)
-fig2.show()
+
+# %%
+fig3, ax3 = plt.subplots(
+    1,
+    3,
+    figsize=(12, 4),
+    tight_layout=True,
+)
+for i in range(7):
+    ax3[0].plot(
+        simulated_deltas_sorted[-1 - i, :],
+        ".-",
+        label=f"deltas {bb_sorted[-1 - i]:.2E}",
+    )
+    ax3[1].plot(simulated_deltas_sorted[i, :], ".-", label=f"BB {bb_sorted[i]:.2E}")
+for axx in ax3[:2]:
+    axx.grid(ls=":")
+    axx.legend()
+    axx.axhline(delta_max, color="k", ls="-")
+ax3[2].hist(bb, bins=100)
+
+ax3[0].set_title(f"deltas for highest BB")
+ax3[1].set_title(f"deltas for lowest BB")
+ax3[2].set_title(f"histograms of BB")
+fig3.show()
