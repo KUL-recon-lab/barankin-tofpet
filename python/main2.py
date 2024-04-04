@@ -1,3 +1,9 @@
+# TODO: - method 2 for deltas, plot of variance against new delta
+# - check whether we hit max bound
+# - plot deltas that yield highest bound
+# - check whether choice of 2 deltas from 80 fixed values is better
+# - when going to N photons make sure that power to N is stable
+
 from __future__ import annotations
 
 import math
@@ -9,9 +15,17 @@ from scipy.integrate import quad
 from collections.abc import Callable
 
 
-def exp_pdf(x: float) -> float:
+def exp_pdf(x: float, mu: float = 1.0) -> float:
     if x >= 0:
-        p = math.exp(-x)
+        p = mu * math.exp(-mu * x)
+    else:
+        p = 0
+    return p
+
+
+def biexp_pdf(x: float, mu1: float = 1.0, mu2: float = 0.5, a: float = 0.5) -> float:
+    if x >= 0:
+        p = a * mu1 * math.exp(-mu1 * x) * (1 - a) * mu2 * math.exp(-mu2 * x)
     else:
         p = 0
     return p
@@ -46,34 +60,36 @@ ax.legend()
 fig.show()
 
 # %%
-
 num_deltas = 16  # number of deltas
-delta_max = 5.0  # max delta value
+delta_max = 3.0  # max delta value
 
 num_sim = 500  # number of simulations
-rcond = 1e-6  # fraction of largest singular value for pinv (rcond)
+rcond = 1e-8  # fraction of largest singular value for pinv (rcond)
 
 upper_int_limit = 50.0  # upper integration limit
+
+num_photons = 5  # number of photons
 
 # %%
 bb = np.zeros(num_sim)
 
 np.random.seed(1)
 
+deltas = np.sort(delta_max * np.random.rand(num_sim, num_deltas))
+
 for i_sim in range(num_sim):
-    deltas = np.sort(delta_max * np.random.rand(num_deltas))
     U = np.zeros((num_deltas, num_deltas))
 
     for i in range(num_deltas):
         for j in range(num_deltas):
-            integ = lambda x: integrand(x, deltas[i], deltas[j])
+            integ = lambda x: integrand(x, deltas[i_sim, i], deltas[i_sim, j])
 
-            if deltas[i] > deltas[j]:
-                l1 = deltas[j]
-                l2 = deltas[i]
+            if deltas[i_sim, i] > deltas[i_sim, j]:
+                l1 = deltas[i_sim, j]
+                l2 = deltas[i_sim, i]
             else:
-                l1 = deltas[i]
-                l2 = deltas[j]
+                l1 = deltas[i_sim, i]
+                l2 = deltas[i_sim, j]
 
             I1 = quad(integ, 0, l1)[0]
             I2 = quad(integ, l1, l2)[0]
@@ -84,13 +100,18 @@ for i_sim in range(num_sim):
             U[i, j] = val
             U[j, i] = val
 
-    pinv_U = np.linalg.pinv(U, rcond=rcond)
+    U_N = (U + 1) ** num_photons - 1
 
-    bb[i_sim] = float(np.sum(deltas * (pinv_U @ deltas)))
+    pinv_U_N = np.linalg.pinv(U_N, rcond=rcond)
+
+    bb[i_sim] = float(np.sum(deltas[i_sim, :] * (pinv_U_N @ deltas[i_sim, :])))
     print(f"{i_sim:04}/{num_sim:04}, {bb[i_sim]:.2E}", end="\r")
 
 print()
-print(bb.max())
+
+i_sim_max = np.argmax(bb)
+print(bb[i_sim_max])
+print(deltas[i_sim_max, :])
 
 # %%
 fig2, ax2 = plt.subplots(tight_layout=True)
