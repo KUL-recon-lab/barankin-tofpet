@@ -56,10 +56,10 @@ def biexp_pdf(x: float, mu1: float = 3.0, mu2: float = 0.5, a: float = 0.5) -> f
 
 # %%
 # input parameters
-num_possible_deltas: int = 140  # number of possible deltas
+num_possible_deltas: int = 150  # number of possible deltas
 num_deltas: int = 128  # number of possible deltas
 delta_min: float = 0.001  # max delta value
-delta_max: float = 80.0  # max delta value
+delta_max: float | None = None  # max delta value
 delta_mode: str = "log"  # delta mode: 'log' or 'lin'
 
 num_sim: int = 500  # number of simulations
@@ -77,14 +77,8 @@ rcond: float = 1e-8  # fraction of largest singular value for pinv (rcond)
 pdf: Callable[[float], float] = truncated_double_gauss_pdf
 
 # %%
-# auto determine upper integration limit (if not given)
 if upper_int_limit is None:
-    upper_int_limit = (
-        root_scalar(lambda x: pdf(x) - 1e-8, x0=10, bracket=[0, 1e3]).root + delta_max
-    )
-print(f"upper integration limit: {upper_int_limit:.2E}")
-print(f"delta min / pdf(delta min): {delta_min:.2E} / {pdf(delta_min):.2E}")
-print(f"delta max / pdf(delta max): {delta_max:.2E} / {pdf(delta_max):.2E}")
+    x_zero = root_scalar(lambda x: pdf(x) - 1e-8, x0=10, bracket=[0, 1e6]).root
 
 # %%
 max_num_sim = comb(num_possible_deltas, num_deltas, exact=True)
@@ -93,19 +87,6 @@ if num_sim > max_num_sim:
     raise ValueError(
         f"Number of simulations ({num_sim}) is larger than the number of possible combinations ({max_num_sim})"
     )
-
-bb = np.zeros(num_sim)
-
-np.random.seed(1)
-
-if delta_mode == "log":
-    all_possible_deltas = np.logspace(
-        np.log10(delta_min), np.log10(delta_max), num_possible_deltas
-    )
-elif delta_mode == "lin":
-    all_possible_deltas = np.linspace(delta_min, delta_max, num_possible_deltas)
-else:
-    raise ValueError("delta_mode must be 'log' or 'lin'")
 
 # %%
 # pre-calculate all possible matrix elements U_ij using all num_possible_deltas over 2
@@ -118,21 +99,62 @@ integrand: Callable[[float, float, float], float] = (
 
 # check the largest and smallest possible U_ij
 integ_min = lambda x: integrand(x, delta_min, delta_min)
-integ_max = lambda x: integrand(x, delta_max, delta_max)
-
-Umin = quad(integ_min, 0, delta_min)[0] + quad(integ_min, delta_min, upper_int_limit)[0]
-Umax = quad(integ_max, 0, delta_max)[0] + quad(integ_max, delta_max, upper_int_limit)[0]
-
+Umin = (
+    quad(integ_min, 0, delta_min)[0] + quad(integ_min, delta_min, x_zero + delta_min)[0]
+)
 U_N_min = (Umin + 1) ** num_photons - 1
-U_N_max = (Umax + 1) ** num_photons - 1
 
-log_dyn_range = np.log10(U_N_max / U_N_min)
+if delta_max is None:
+    print("finding delta_max")
+    delta_max = 1.01 * delta_min
+    it = 0
+    for it in range(100):
+        integ_max = lambda x: integrand(x, delta_max, delta_max)
+        Umax = (
+            quad(integ_max, 0, delta_max)[0]
+            + quad(integ_max, delta_max, x_zero + delta_max)[0]
+        )
+        U_N_max = (Umax + 1) ** num_photons - 1
+        log_dyn_range = np.log10(U_N_max / U_N_min)
+        print(f"{it:03} {log_dyn_range:.2f}", end="\r")
+
+        if log_dyn_range < 6.0:
+            delta_max *= 2
+        elif log_dyn_range > 15.0:
+            delta_max /= 2
+        else:
+            break
+    print()
+else:
+    integ_max = lambda x: integrand(x, delta_max, delta_max)
+    Umax = (
+        quad(integ_max, 0, delta_max)[0]
+        + quad(integ_max, delta_max, x_zero + delta_max)[0]
+    )
+    U_N_max = (Umax + 1) ** num_photons - 1
+    log_dyn_range = np.log10(U_N_max / U_N_min)
+
+
+upper_int_limit = x_zero + delta_max
+
+print(f"upper integration limit: {upper_int_limit:.2E}")
+print(f"delta min / pdf(delta min): {delta_min:.2E} / {pdf(delta_min):.2E}")
+print(f"delta max / pdf(delta max): {delta_max:.2E} / {pdf(delta_max):.2E}")
 print(f"log dynamic range of all possible U_N_ij: {log_dyn_range:.2f}")
 
 if log_dyn_range > 15.0:
     raise ValueError("Dynamic range of U_N_ij is too large. Decrease delta_max.")
 if log_dyn_range < 6.0:
     raise ValueError("Dynamic range of U_N_ij is too low. Increase delta_max.")
+
+if delta_mode == "log":
+    all_possible_deltas = np.logspace(
+        np.log10(delta_min), np.log10(delta_max), num_possible_deltas
+    )
+elif delta_mode == "lin":
+    all_possible_deltas = np.linspace(delta_min, delta_max, num_possible_deltas)
+else:
+    raise ValueError("delta_mode must be 'log' or 'lin'")
 
 
 print(
@@ -174,7 +196,9 @@ figU.colorbar(imU)
 figU.show()
 
 # %%
+np.random.seed(1)
 
+bb = np.zeros(num_sim)
 simulated_deltas = np.zeros((num_sim, num_deltas))
 all_inds = np.arange(num_possible_deltas)
 
