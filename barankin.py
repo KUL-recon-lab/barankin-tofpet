@@ -56,7 +56,7 @@ def biexp_pdf(x: float, mu1: float = 3.0, mu2: float = 0.5, a: float = 0.5) -> f
 
 # %%
 # input parameters
-num_possible_deltas: int = 150  # number of possible deltas
+num_possible_deltas: int = 256  # number of possible deltas
 num_deltas: int = 128  # number of possible deltas
 delta_min: float = 0.001  # max delta value
 delta_max: float | None = None  # max delta value
@@ -220,7 +220,7 @@ for i_sim in range(num_sim):
     pinv_U_N = np.linalg.pinv(U_N, rcond=rcond)
 
     bb[i_sim] = float(np.sum(deltas * (pinv_U_N @ deltas)))
-    print(f"{i_sim:04}/{num_sim:04}, {bb[i_sim]:.2E}", end="\r")
+    print(f"{(i_sim+1):04}/{num_sim:04}, {bb[i_sim]:.2E}", end="\r")
 
 print()
 
