@@ -13,6 +13,29 @@ def estimate_deltas(
     delta_max: float | None = None,
     delta_mode: str = "log",
 ) -> tuple[np.ndarray, float]:
+    """heuristic estimation of deltas for Barankin bound calculation
+
+    Parameters
+    ----------
+    pdf : Callable[[float], float]
+        probability density function
+    N : int
+        number of samples / photons
+    num_possible_deltas : int
+        number of possible deltas to consider
+    delta_min : float
+        minimum delta
+    delta_max : float | None, optional
+        maximum delta, if None, it will be estimated,
+        by default None
+    delta_mode : str, optional
+        arange deltas in linspace or logspace, by default "log"
+
+    Returns
+    -------
+    tuple[np.ndarray, float]
+        all_possible_deltas, point beyond which pdf is essentially zero
+    """
 
     eta: Callable[[float, float], float] = lambda t, delta: pdf(t - delta) / pdf(t) - 1
     integrand: Callable[[float, float, float], float] = (
@@ -86,6 +109,24 @@ def calculate_all_possible_U_N_ij(
     N: int,
     upper_int_limit: float,
 ) -> np.ndarray:
+    """calculate all matrix elements U_N_ij for all possible deltas
+
+    Parameters
+    ----------
+    pdf : Callable[[float], float]
+        probability density function
+    all_possible_deltas : np.ndarray
+        all deltas to consider
+    N : int
+        number of samples / photons
+    upper_int_limit : float
+        upper integration limit
+
+    Returns
+    -------
+    np.ndarray
+        A 2D array containing all possible U_N_ij
+    """
 
     num_possible_deltas = all_possible_deltas.shape[0]
 
@@ -132,7 +173,29 @@ def simulate_barankin_bounds(
     all_possible_deltas: np.ndarray,
     rcond: float = 1e-8,
     sort_output: bool = True,
-):
+) -> tuple[np.ndarray, np.ndarray]:
+    """simulate Barankin bounds based on random sub samples of all possible deltas
+
+    Parameters
+    ----------
+    all_U_N_ij : np.ndarray
+        2D array with pre-calculated U_N_ij
+    num_sim : int
+        number of simulations to perform
+    J : int
+        number of deltas to choose for each simulation
+    all_possible_deltas : np.ndarray
+        all possible deltas to consider
+    rcond : float, optional
+        passed to np.linalg.pinv, by default 1e-8
+    sort_output : bool, optional
+        sort output array by ascending bounds, by default True
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        simulated Barankin bounds and used deltas
+    """
     bb = np.zeros(num_sim)
     simulated_deltas = np.zeros((num_sim, J))
 
