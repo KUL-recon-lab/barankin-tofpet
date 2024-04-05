@@ -9,6 +9,7 @@ from matplotlib.colors import LogNorm
 
 from scipy.integrate import quad
 from scipy.special import comb
+from scipy.optimize import root_scalar
 
 from collections.abc import Callable
 
@@ -16,6 +17,46 @@ from collections.abc import Callable
 def exp_pdf(x: float, mu: float = 1.0) -> float:
     if x >= 0:
         p = mu * math.exp(-mu * x)
+    else:
+        p = 0
+    return p
+
+
+def truncated_gauss_pdf(x: float, mu: float = 2.0, sig: float = 3.0) -> float:
+    if x >= 0:
+        p = math.exp(-0.5 * ((x - mu) / sig) ** 2)
+    else:
+        p = 0
+    return p
+
+
+def truncated_double_gauss_pdf(
+    x: float, mu1: float = 2.0, sig1: float = 3.0, mu2: float = 14.0, sig2: float = 5.0
+) -> float:
+    if x >= 0:
+        p = math.exp(-0.5 * ((x - mu1) / sig1) ** 2) + 0.5 * math.exp(
+            -0.5 * ((x - mu2) / sig2) ** 2
+        )
+    else:
+        p = 0
+    return p
+
+
+def truncated_triple_gauss_pdf(
+    x: float,
+    mu1: float = 2.0,
+    sig1: float = 3.0,
+    mu2: float = 14.0,
+    sig2: float = 5.0,
+    mu3: float = 23.0,
+    sig3: float = 1.0,
+) -> float:
+    if x >= 0:
+        p = (
+            math.exp(-0.5 * ((x - mu1) / sig1) ** 2)
+            + 0.5 * math.exp(-0.5 * ((x - mu2) / sig2) ** 2)
+            + 0.3 * math.exp(-0.5 * ((x - mu3) / sig3) ** 2)
+        )
     else:
         p = 0
     return p
@@ -35,17 +76,31 @@ num_possible_deltas: int = 140  # number of possible deltas
 num_deltas: int = 128  # number of possible deltas
 delta_min: float = 0.001  # max delta value
 delta_max: float = 20.0  # max delta value
+delta_mode: str = "log"  # delta mode: 'log' or 'lin'
 
 num_sim: int = 500  # number of simulations
 
 num_photons: int = 1  # number of photons
 
-upper_int_limit: float = 100.0  # upper integration limit
+upper_int_limit: float | None = (
+    None  # upper integration limit, None means auto determined
+)
 rcond: float = 1e-8  # fraction of largest singular value for pinv (rcond)
 
 # choice of the user defined pdf
-pdf: Callable[[float], float] = exp_pdf
+# pdf: Callable[[float], float] = exp_pdf
 # pdf: Callable[[float], float] = biexp_pdf
+pdf: Callable[[float], float] = truncated_triple_gauss_pdf
+
+# %%
+# auto determine upper integration limit (if not given)
+if upper_int_limit is None:
+    upper_int_limit = (
+        root_scalar(lambda x: pdf(x) - 1e-8, x0=10, bracket=[0, 1e3]).root + delta_max
+    )
+print(f"upper integration limit: {upper_int_limit:.2E}")
+print(f"delta min / pdf(delta min): {delta_min:.2E} / {pdf(delta_min):.2E}")
+print(f"delta max / pdf(delta min): {delta_max:.2E} / {pdf(delta_max):.2E}")
 
 # %%
 max_num_sim = comb(num_possible_deltas, num_deltas, exact=True)
@@ -58,9 +113,15 @@ if num_sim > max_num_sim:
 bb = np.zeros(num_sim)
 
 np.random.seed(1)
-all_possible_deltas = np.logspace(
-    np.log10(delta_min), np.log10(delta_max), num_possible_deltas
-)
+
+if delta_mode == "log":
+    all_possible_deltas = np.logspace(
+        np.log10(delta_min), np.log10(delta_max), num_possible_deltas
+    )
+elif delta_mode == "lin":
+    all_possible_deltas = np.linspace(delta_min, delta_max, num_possible_deltas)
+else:
+    raise ValueError("delta_mode must be 'log' or 'lin'")
 
 # %%
 # pre-calculate all possible matrix elements U_ij using all num_possible_deltas over 2
@@ -85,12 +146,6 @@ for i in range(num_possible_deltas):
         l1 = all_possible_deltas[j]
         l2 = all_possible_deltas[i]
 
-        integ_test_values = [integ(x) for x in t_test]
-        if max(integ_test_values) > 1e10:
-            raise ValueError(
-                f"Integrand values are too large: {max(integ_test_values)}"
-            )
-
         if i != j:
             IL = quad(integ, 0, l1, full_output=True)
             IM = quad(integ, l1, l2, full_output=True)
@@ -106,17 +161,18 @@ for i in range(num_possible_deltas):
 
 # check dynamic range of all possible U_ijs transformed to U_N
 all_U_N_ij = (all_U_ij + 1) ** num_photons - 1
-log_dyn_range = np.log10(all_U_N_ij.max() / all_U_N_ij.min())
+log_dyn_range = np.log10(np.abs(all_U_N_ij).max() / np.abs(all_U_N_ij).min())
 print(f"log dynamic range of all possible U_N_ij: {log_dyn_range:.2f}")
 
-if log_dyn_range > 13:
+if log_dyn_range > 15.0:
     raise ValueError("Dynamic range of U_N_ij is too large. Decrease delta_max.")
-if log_dyn_range < 7:
+if log_dyn_range < 6.0:
     raise ValueError("Dynamic range of U_N_ij is too low. Increase delta_max.")
 
 figU, axU = plt.subplots(tight_layout=True)
 imU = axU.matshow(
-    all_U_N_ij, norm=LogNorm(vmin=all_U_N_ij.min(), vmax=all_U_N_ij.max())
+    all_U_N_ij,
+    norm=LogNorm(vmin=all_U_N_ij.min(), vmax=all_U_N_ij.max()),
 )
 axU.set_title(f"all possible U_N_ij (delta_min={delta_min}, delta_max={delta_max})")
 figU.colorbar(imU)
@@ -193,7 +249,7 @@ for axx in ax3[0, :]:
     axx.legend()
     axx.axhline(delta_max, color="k", ls="-")
 
-tt = np.linspace(-1, 10, 1000)
+tt = np.linspace(-1, upper_int_limit, 1000)
 ax3[1, 0].plot(tt, [pdf(x) for x in tt])
 ax3[1, 1].hist(bb, bins=100)
 
