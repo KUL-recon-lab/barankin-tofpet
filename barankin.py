@@ -57,7 +57,7 @@ def biexp_pdf(x: float, mu1: float = 3.0, mu2: float = 0.5, a: float = 0.5) -> f
 # %%
 # input parameters
 num_possible_deltas: int = 256  # number of possible deltas
-num_deltas: int = 128  # number of possible deltas
+J: int = 128  # number of deltas used for one simulation
 delta_min: float = 0.001  # max delta value
 delta_max: float | None = None  # max delta value
 delta_mode: str = "log"  # delta mode: 'log' or 'lin'
@@ -77,11 +77,10 @@ rcond: float = 1e-8  # fraction of largest singular value for pinv (rcond)
 pdf: Callable[[float], float] = truncated_double_gauss_pdf
 
 # %%
-if upper_int_limit is None:
-    x_zero = root_scalar(lambda x: pdf(x) - 1e-8, x0=10, bracket=[0, 1e6]).root
+x_zero = root_scalar(lambda x: pdf(x) - 1e-8, x0=10, bracket=[0, 1e6]).root
 
 # %%
-max_num_sim = comb(num_possible_deltas, num_deltas, exact=True)
+max_num_sim = comb(num_possible_deltas, J, exact=True)
 
 if num_sim > max_num_sim:
     raise ValueError(
@@ -135,7 +134,8 @@ else:
     log_dyn_range = np.log10(U_N_max / U_N_min)
 
 
-upper_int_limit = x_zero + delta_max
+if upper_int_limit is None:
+    upper_int_limit = x_zero + delta_max
 
 print(f"upper integration limit: {upper_int_limit:.2E}")
 print(f"delta min / pdf(delta min): {delta_min:.2E} / {pdf(delta_min):.2E}")
@@ -162,8 +162,6 @@ print(
 )
 
 all_U_ij = np.zeros((num_possible_deltas, num_possible_deltas))
-
-t_test = np.linspace(0, upper_int_limit, 10)
 
 for i in range(num_possible_deltas):
     for j in range(i + 1):
@@ -199,17 +197,17 @@ figU.show()
 np.random.seed(1)
 
 bb = np.zeros(num_sim)
-simulated_deltas = np.zeros((num_sim, num_deltas))
+simulated_deltas = np.zeros((num_sim, J))
 all_inds = np.arange(num_possible_deltas)
 
 for i_sim in range(num_sim):
-    inds = np.random.choice(all_inds, size=(num_deltas,))
+    inds = np.random.choice(all_inds, size=(J,))
     inds.sort()
 
     deltas = all_possible_deltas[inds]
     simulated_deltas[i_sim, :] = deltas
 
-    U = np.zeros((num_deltas, num_deltas))
+    U = np.zeros((J, J))
 
     for i, ii in enumerate(inds):
         for j, jj in enumerate(inds):
@@ -246,7 +244,7 @@ print(f"95% of the simulated BBs are within {int(100*rdist)}% of the max BB")
 
 if rdist > 0.2:
     warnings.warn(
-        "WARNING: lower 5% of the simulated BBs are more than 20% away from the max BB. Increase num_deltas"
+        "WARNING: lower 5% of the simulated BBs are more than 20% away from the max BB. Increase J"
     )
 
 # %%
@@ -275,8 +273,8 @@ ax3[1, 1].hist(bb, bins=100)
 for axx in ax3[1, :]:
     axx.grid(ls=":")
 
-ax3[0, 0].set_title(f"{num_deltas} deltas resulting in 7 highest BBs")
-ax3[0, 1].set_title(f"{num_deltas} deltas resulting in 7 lowest BBs")
+ax3[0, 0].set_title(f"{J} deltas resulting in 7 highest BBs")
+ax3[0, 1].set_title(f"{J} deltas resulting in 7 lowest BBs")
 ax3[1, 0].set_title(f"pdf")
 ax3[1, 1].set_title(f"histograms of BBs")
 fig3.show()
