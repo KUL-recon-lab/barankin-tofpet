@@ -31,31 +31,15 @@ def truncated_gauss_pdf(x: float, mu: float = 2.0, sig: float = 3.0) -> float:
 
 
 def truncated_double_gauss_pdf(
-    x: float, mu1: float = 2.0, sig1: float = 3.0, mu2: float = 14.0, sig2: float = 5.0
-) -> float:
-    if x >= 0:
-        p = math.exp(-0.5 * ((x - mu1) / sig1) ** 2) + 0.5 * math.exp(
-            -0.5 * ((x - mu2) / sig2) ** 2
-        )
-    else:
-        p = 0
-    return p
-
-
-def truncated_triple_gauss_pdf(
     x: float,
-    mu1: float = 2.0,
+    mu1: float = 7.0,
     sig1: float = 3.0,
-    mu2: float = 14.0,
-    sig2: float = 5.0,
-    mu3: float = 23.0,
-    sig3: float = 1.0,
+    mu2: float = 70.0,
+    sig2: float = 60.0,
 ) -> float:
     if x >= 0:
-        p = (
-            math.exp(-0.5 * ((x - mu1) / sig1) ** 2)
-            + 0.5 * math.exp(-0.5 * ((x - mu2) / sig2) ** 2)
-            + 0.3 * math.exp(-0.5 * ((x - mu3) / sig3) ** 2)
+        p = math.exp(-0.5 * ((x - mu1) / sig1) ** 2) + 0.3 * math.exp(
+            -0.5 * ((x - mu2) / sig2) ** 2
         )
     else:
         p = 0
@@ -75,7 +59,7 @@ def biexp_pdf(x: float, mu1: float = 3.0, mu2: float = 0.5, a: float = 0.5) -> f
 num_possible_deltas: int = 140  # number of possible deltas
 num_deltas: int = 128  # number of possible deltas
 delta_min: float = 0.001  # max delta value
-delta_max: float = 20.0  # max delta value
+delta_max: float = 80.0  # max delta value
 delta_mode: str = "log"  # delta mode: 'log' or 'lin'
 
 num_sim: int = 500  # number of simulations
@@ -90,7 +74,7 @@ rcond: float = 1e-8  # fraction of largest singular value for pinv (rcond)
 # choice of the user defined pdf
 # pdf: Callable[[float], float] = exp_pdf
 # pdf: Callable[[float], float] = biexp_pdf
-pdf: Callable[[float], float] = truncated_triple_gauss_pdf
+pdf: Callable[[float], float] = truncated_double_gauss_pdf
 
 # %%
 # auto determine upper integration limit (if not given)
@@ -100,7 +84,7 @@ if upper_int_limit is None:
     )
 print(f"upper integration limit: {upper_int_limit:.2E}")
 print(f"delta min / pdf(delta min): {delta_min:.2E} / {pdf(delta_min):.2E}")
-print(f"delta max / pdf(delta min): {delta_max:.2E} / {pdf(delta_max):.2E}")
+print(f"delta max / pdf(delta max): {delta_max:.2E} / {pdf(delta_max):.2E}")
 
 # %%
 max_num_sim = comb(num_possible_deltas, num_deltas, exact=True)
@@ -132,8 +116,27 @@ integrand: Callable[[float, float, float], float] = (
     lambda t, a, b: eta(t, a) * eta(t, b) * pdf(t)
 )
 
+# check the largest and smallest possible U_ij
+integ_min = lambda x: integrand(x, delta_min, delta_min)
+integ_max = lambda x: integrand(x, delta_max, delta_max)
+
+Umin = quad(integ_min, 0, delta_min)[0] + quad(integ_min, delta_min, upper_int_limit)[0]
+Umax = quad(integ_max, 0, delta_max)[0] + quad(integ_max, delta_max, upper_int_limit)[0]
+
+U_N_min = (Umin + 1) ** num_photons - 1
+U_N_max = (Umax + 1) ** num_photons - 1
+
+log_dyn_range = np.log10(U_N_max / U_N_min)
+print(f"log dynamic range of all possible U_N_ij: {log_dyn_range:.2f}")
+
+if log_dyn_range > 15.0:
+    raise ValueError("Dynamic range of U_N_ij is too large. Decrease delta_max.")
+if log_dyn_range < 6.0:
+    raise ValueError("Dynamic range of U_N_ij is too low. Increase delta_max.")
+
+
 print(
-    f"pre-calculate all possible ({comb(num_possible_deltas,2,exact=True)}) matrix elements U_ij"
+    f"pre-calculate all possible ({num_possible_deltas*(num_possible_deltas-1)//2}) matrix elements U_ij"
 )
 
 all_U_ij = np.zeros((num_possible_deltas, num_possible_deltas))
@@ -147,13 +150,13 @@ for i in range(num_possible_deltas):
         l2 = all_possible_deltas[i]
 
         if i != j:
-            IL = quad(integ, 0, l1, full_output=True)
-            IM = quad(integ, l1, l2, full_output=True)
-            IR = quad(integ, l2, upper_int_limit, full_output=True)
+            IL = quad(integ, 0, l1)
+            IM = quad(integ, l1, l2)
+            IR = quad(integ, l2, upper_int_limit)
             val = IL[0] + IM[0] + IR[0]
         else:
-            IL = quad(integ, 0, l1, full_output=True)
-            IR = quad(integ, l1, upper_int_limit, full_output=True)
+            IL = quad(integ, 0, l1)
+            IR = quad(integ, l1, upper_int_limit)
             val = IL[0] + IR[0]
 
         all_U_ij[i, j] = val
@@ -161,14 +164,6 @@ for i in range(num_possible_deltas):
 
 # check dynamic range of all possible U_ijs transformed to U_N
 all_U_N_ij = (all_U_ij + 1) ** num_photons - 1
-log_dyn_range = np.log10(np.abs(all_U_N_ij).max() / np.abs(all_U_N_ij).min())
-print(f"log dynamic range of all possible U_N_ij: {log_dyn_range:.2f}")
-
-if log_dyn_range > 15.0:
-    raise ValueError("Dynamic range of U_N_ij is too large. Decrease delta_max.")
-if log_dyn_range < 6.0:
-    raise ValueError("Dynamic range of U_N_ij is too low. Increase delta_max.")
-
 figU, axU = plt.subplots(tight_layout=True)
 imU = axU.matshow(
     all_U_N_ij,
