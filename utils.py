@@ -230,3 +230,52 @@ def simulate_barankin_bounds(
         simulated_deltas_sorted = simulated_deltas
 
     return bb_sorted, simulated_deltas_sorted
+
+
+def U_N_ij(
+    pdf: Callable[[float], float],
+    delta_i: float,
+    delta_j: float,
+    N: int,
+    upper_int_limit: float,
+) -> float:
+    """calculate matrix elements U_N_ij
+
+    Parameters
+    ----------
+    pdf : Callable[[float], float]
+        probability density function
+    delta_i : float
+        first delta shift
+    delta_j : float
+        second delta shift
+    N : int
+        number of samples / photons
+    upper_int_limit : float
+        upper integration limit
+
+    Returns
+    -------
+    float
+        the matrix element U_N_ij
+    """
+
+    eta: Callable[[float, float], float] = lambda t, delta: pdf(t - delta) / pdf(t) - 1
+    integ: Callable[[float], float] = (
+        lambda t: eta(t, delta_i) * eta(t, delta_j) * pdf(t)
+    )
+
+    l1 = min(delta_i, delta_j)
+    l2 = max(delta_i, delta_j)
+
+    if l1 != l2:
+        IL = quad(integ, 0, l1)
+        IM = quad(integ, l1, l2)
+        IR = quad(integ, l2, upper_int_limit)
+        val = IL[0] + IM[0] + IR[0]
+    else:
+        IL = quad(integ, 0, l1)
+        IR = quad(integ, l1, upper_int_limit)
+        val = IL[0] + IR[0]
+
+    return (val + 1) ** N - 1

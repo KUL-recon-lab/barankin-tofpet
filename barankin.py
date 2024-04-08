@@ -22,7 +22,7 @@ from utils import (
 num_possible_deltas: int = 200  # number of possible deltas
 J: int = 128  # number of deltas used for one simulation
 delta_min: float = 0.001  # max delta value
-delta_max: float | None = None  # max delta value
+delta_max: float | None = 2.0  # max delta value
 delta_mode: str = "log"  # delta mode: 'log' or 'lin'
 
 num_sim: int = 500  # number of simulations
