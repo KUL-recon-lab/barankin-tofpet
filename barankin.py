@@ -19,8 +19,8 @@ num_possible_deltas: int = 200  # number of possible deltas
 delta_min: float | None = None  # max delta value
 delta_max: float | None = None  # max delta value
 delta_mode: str = "log"  # delta mode: 'log' or 'lin'
-N: int = 1  # number of photons
-Jmax: int = 50
+N: int = 10  # number of photons
+Jmax: int = 100
 x_zero: float | None = None  # point beyond which pdf is essentially zero
 
 rcond: float = 1e-8  # fraction of largest singular value for pinv (rcond)
