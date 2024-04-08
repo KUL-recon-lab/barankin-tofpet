@@ -49,10 +49,10 @@ def truncated_gauss_pdf(x: float, mu: float = 2.0, sig: float = 3.0) -> float:
 
 def truncated_double_gauss_pdf(
     x: float,
-    mu1: float = 7.0,
-    sig1: float = 3.0,
-    mu2: float = 70.0,
-    sig2: float = 60.0,
+    mu1: float = 7.0 / 100,
+    sig1: float = 3.0 / 100,
+    mu2: float = 70.0 / 100,
+    sig2: float = 60.0 / 100,
 ) -> float:
     """truncate double gaussian pdf (0 for x < 0)
 
