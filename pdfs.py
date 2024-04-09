@@ -96,10 +96,24 @@ def bi_exp_model(
         return 0
 
     else:
-        C = 2 / (1 + math.erfc(t_tr / (math.sqrt(2) * sig_tr)))
+        C = 2 / (1 + math.erf(t_tr / (math.sqrt(2) * sig_tr)))
         return (C / (tau_d - tau_r)) * (
             _a(t, tau_d, t_tr, sig_tr) - _a(t, tau_r, t_tr, sig_tr)
         )
+
+
+def det1_pdf(t: float, alpha: float = 0.05) -> float:
+
+    return alpha * bi_exp_model(t, 1.6, 0.35, 0.179, 0.081) + (
+        1 - alpha
+    ) * bi_exp_model(t, 40.0, 0.01, 0.179, 0.081)
+
+
+def det2_pdf(t: float, alpha: float = 0.05) -> float:
+
+    return alpha * bi_exp_model(t, 1.0, 0.01, 0.179, 0.081) + (
+        1 - alpha
+    ) * bi_exp_model(t, 20.0, 5.0, 0.179, 0.081)
 
 
 if __name__ == "__main__":
@@ -108,11 +122,11 @@ if __name__ == "__main__":
 
     tt = np.linspace(0, 30, 10000)
 
-    p1 = np.array([bi_exp_model(t, 1.0, 0.01, 0.179, 0.081) for t in tt])
-    p2 = np.array([bi_exp_model(t, 20.0, 5.0, 0.179, 0.081) for t in tt])
+    p1 = np.array([det1_pdf(t) for t in tt])
+    p2 = np.array([det2_pdf(t) for t in tt])
 
-    alpha = 0.05
-    p = alpha * p1 + (1 - alpha) * p2
-
-    plt.plot(tt, p, ".-")
-    plt.show()
+    fig, ax = plt.subplots()
+    ax.plot(tt, p1, ".-")
+    ax.plot(tt, p2, ".-")
+    ax.grid(ls=":")
+    fig.show()

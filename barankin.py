@@ -4,30 +4,28 @@ from __future__ import annotations
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.optimize import root_scalar
 from scipy.integrate import quad
 
 from collections.abc import Callable
 
-from pdfs import truncated_double_gauss_pdf, exp_pdf
+from pdfs import det2_pdf
 from utils import U_N_ij
 
 
 # %%
 # input parameters
-num_possible_deltas: int = 200  # number of possible deltas
+num_possible_deltas: int = 80  # number of possible deltas
 delta_min: float | None = None  # max delta value
 delta_max: float | None = None  # max delta value
 delta_mode: str = "log"  # delta mode: 'log' or 'lin'
-N: int = 1  # number of photons
-Jmax: int = 50
+N: int = 10  # number of photons
+Jmax: int = 32
 x_zero: float | None = None  # point beyond which pdf is essentially zero
 
 rcond: float = 1e-8  # fraction of largest singular value for pinv (rcond)
 
 # choice of the user defined pdf
-pdf: Callable[[float], float] = truncated_double_gauss_pdf
-# pdf: Callable[[float], float] = exp_pdf
+pdf: Callable[[float], float] = det2_pdf
 
 # show interactive plots
 interactive: bool = False
@@ -35,7 +33,9 @@ interactive: bool = False
 # %%
 # estimate delta_min and delta_max
 if x_zero is None:
-    x_zero = root_scalar(lambda x: pdf(x) - 1e-8, x0=10, bracket=[0, 1e6]).root
+    xx = np.logspace(-8, 8, 1000)
+    y = np.array([pdf(x) for x in xx])
+    x_zero = xx[np.where(y >= 1e-8)[0].max() + 1]
 
 # normalize the pdf
 norm = quad(pdf, 0, x_zero)[0]
@@ -72,7 +72,7 @@ chosen_delta_inds = []
 upper_int_limit = x_zero + delta_max
 
 # plot the pdf and the upper integration limit
-tt = np.linspace(-x_zero / 10, x_zero, 1000)
+tt = np.concatenate(([-1], np.linspace(0, x_zero, 1000)))
 fig, ax = plt.subplots(figsize=(4, 4), tight_layout=True)
 ax.plot(tt, [normalized_pdf(x) for x in tt])
 ax.set_title(f"normalized pdf")
@@ -160,12 +160,15 @@ for J in range(Jmax - 1):
     chosen_delta_inds.append(available_delta_inds.pop(i_delta_max))
     U_cur = U_Ns[i_delta_max]
     bbs.append(test_bbs[i_delta_max])
-    print(f"{(J + 2):04}  {test_bbs[i_delta_max]:.4E}", end="\r")
+    print(
+        f"{(J + 2):04}  {test_bbs[i_delta_max]:.4E} {np.sqrt(test_bbs[i_delta_max]):.4E}",
+        end="\r",
+    )
 
 print()
 
 fig3, ax3 = plt.subplots(1, 3, figsize=(12, 4), tight_layout=True)
-ax3[0].plot(bbs, ".-")
+ax3[0].plot(np.sqrt(bbs), ".-")
 ax3[1].semilogy(all_possible_deltas[chosen_delta_inds], ".-")
 ax3[2].semilogy(sorted(all_possible_deltas[chosen_delta_inds]), ".-")
 for axx in ax3:
@@ -174,7 +177,7 @@ for axx in ax3:
 for axx in ax3[1:]:
     axx.axhline(delta_min, color="k", ls="--")
     axx.axhline(delta_max, color="k", ls="--")
-ax3[0].set_title("barankin bound")
-ax3[1].set_title("deltas")
-ax3[2].set_title("sorted deltas")
+ax3[0].set_title("barankin bound for std.dev.")
+ax3[1].set_title("chosen deltas")
+ax3[2].set_title("sorted chosen deltas")
 fig3.show()
