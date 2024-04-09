@@ -294,7 +294,35 @@ def barankin_bound(
     upper_int_limit: float,
     rcond: float = 1e-8,
     interactive: bool = False,
+    verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
+    """_summary_
+
+    Parameters
+    ----------
+    normalized_pdf : Callable[[float], float]
+        normalized probability density function which must return 0 for x < 0
+    all_possible_deltas : list[float]
+        list of deltas to consider to calculate Barankin bound
+    N : int
+        number of photons / samples
+    Jmax : int
+        maximum J (number of deltas) to consider
+    upper_int_limit : float
+        upper limit for evaluation of integrals
+    rcond : float, optional
+        see np.linalg.pinv, by default 1e-8
+    interactive : bool, optional
+        show interactive plots showing choice of next delta, by default False
+    verbose : bool, optional
+        print verbose output, by default True
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        Barankin bound for variance as function of J
+        chosen delta values
+    """
 
     available_delta_inds = np.arange(all_possible_deltas.size).tolist()
     chosen_delta_inds = []
@@ -324,7 +352,7 @@ def barankin_bound(
 
     bbs = [test_bbs[i_delta_max]]
 
-    for J in range(Jmax - 1):
+    for J in np.arange(2, Jmax + 1):
         nd = len(chosen_delta_inds)
         U_Ns = []
         test_bbs = np.zeros(len(available_delta_inds))
@@ -378,11 +406,13 @@ def barankin_bound(
         chosen_delta_inds.append(available_delta_inds.pop(i_delta_max))
         U_cur = U_Ns[i_delta_max]
         bbs.append(test_bbs[i_delta_max])
-        print(
-            f"{(J + 2):04}  {test_bbs[i_delta_max]:.4E} {np.sqrt(test_bbs[i_delta_max]):.4E}",
-            end="\r",
-        )
+        if verbose:
+            print(
+                f"J: {J:04} BB-VAR: {test_bbs[i_delta_max]:.4E} BB-STDDEV: {np.sqrt(test_bbs[i_delta_max]):.4E}",
+                end="\r",
+            )
 
-    print()
+    if verbose:
+        print()
 
     return np.array(bbs), np.array(all_possible_deltas[chosen_delta_inds])
