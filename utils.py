@@ -5,6 +5,18 @@ from collections.abc import Callable
 from scipy.integrate import quad
 
 
+def eta(t: float, delta: float, pdf: Callable[[float], float]):
+    A = pdf(t - delta)
+    B = pdf(t)
+
+    if A == 0 and B == 0:
+        return 0
+    elif A != 0 and B == 0:
+        return np.finfo(np.float32).max
+    else:
+        return pdf(t - delta) / pdf(t) - 1
+
+
 def U_N_ij(
     pdf: Callable[[float], float],
     delta_i: float,
@@ -33,9 +45,9 @@ def U_N_ij(
         the matrix element U_N_ij
     """
 
-    eta: Callable[[float, float], float] = lambda t, delta: pdf(t - delta) / pdf(t) - 1
+    # eta: Callable[[float, float], float] = lambda t, delta: pdf(t - delta) / pdf(t) - 1
     integ: Callable[[float], float] = (
-        lambda t: eta(t, delta_i) * eta(t, delta_j) * pdf(t)
+        lambda t: eta(t, delta_i, pdf) * eta(t, delta_j, pdf) * pdf(t)
     )
 
     l1 = min(delta_i, delta_j)

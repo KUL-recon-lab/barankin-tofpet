@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy.integrate import quad
+from scipy.interpolate import interp1d
+
 from collections.abc import Callable
 from pdfs import det2_pdf
 from utils import barankin_bound
@@ -13,8 +15,10 @@ from utils import barankin_bound
 # %%
 # input parameters
 
-# choice of the user defined pdf - a callable mapping a float to a float
-pdf: Callable[[float], float] = det2_pdf
+# file name of the lookup table containing the pdf
+# the file should contains two columns, x and pdf(x), separated by whitespace
+# the pdf does not need to be normalized
+pdf_lut_fname: str = "example_pdf.txt"
 # number of possible deltas
 num_possible_deltas: int = 80
 # minimum delta to consider, None mean auto determined
@@ -33,6 +37,18 @@ x_zero: float | None = None
 rcond: float = 1e-12
 # show interactive plots on how J values are chose, requires user interaction
 interactive: bool = False
+
+
+# %%
+
+pdf: Callable[[float], float] = det2_pdf
+
+# read the pdf from a file
+# lut = np.loadtxt(pdf_lut_fname)
+# tmp = interp1d(
+#    lut[:, 0], lut[:, 1], kind="linear", fill_value=1e-10, bounds_error=False
+# )
+# pdf = lambda x: float(tmp(x))
 
 # %%
 # estimate the point beyond which the pdf is essentially zero (smaller than 1e-5)
