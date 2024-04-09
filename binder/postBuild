@@ -1,0 +1,2 @@
+jupytext --to notebook barankin.py
+rm barankin.py
