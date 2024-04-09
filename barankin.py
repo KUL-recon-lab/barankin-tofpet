@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from scipy.integrate import quad
 
 from collections.abc import Callable
+from warnings import warn
 
 from pdfs import det2_pdf
 from utils import U_N_ij
@@ -18,11 +19,10 @@ num_possible_deltas: int = 80  # number of possible deltas
 delta_min: float | None = None  # max delta value
 delta_max: float | None = None  # max delta value
 delta_mode: str = "log"  # delta mode: 'log' or 'lin'
-N: int = 10  # number of photons
+N: int = 100  # number of photons
 Jmax: int = 32
 x_zero: float | None = None  # point beyond which pdf is essentially zero
-
-rcond: float = 1e-8  # fraction of largest singular value for pinv (rcond)
+rcond: float = 1e-12  # fraction of largest singular value for pinv (rcond)
 
 # choice of the user defined pdf
 pdf: Callable[[float], float] = det2_pdf
@@ -35,7 +35,7 @@ interactive: bool = False
 if x_zero is None:
     xx = np.logspace(-8, 8, 1000)
     y = np.array([pdf(x) for x in xx])
-    x_zero = xx[np.where(y >= 1e-8)[0].max() + 1]
+    x_zero = xx[np.where(y >= 1e-5)[0].max() + 1]
 
 # normalize the pdf
 norm = quad(pdf, 0, x_zero)[0]
@@ -47,9 +47,9 @@ stddev_pdf = np.sqrt(
 )
 
 if delta_max is None:
-    delta_max = 20.0 * stddev_pdf / N
+    delta_max = 100.0 * stddev_pdf / N
 if delta_min is None:
-    delta_min = 0.003 * stddev_pdf / N
+    delta_min = 0.001 * stddev_pdf / N
 
 print(f"delta_min: {delta_min:.2E}")
 print(f"delta_max: {delta_max:.2E}")
@@ -82,7 +82,7 @@ fig.show()
 
 # %%
 # calculate max Barankin bound when choosing 1 delta
-test_bbs = np.zeros(num_possible_deltas)
+test_bbs = np.zeros(all_possible_deltas.size)
 U_Ns = []
 
 U_N_ij_lut = dict()
@@ -98,10 +98,10 @@ for j, delta in enumerate(all_possible_deltas):
 # %%
 # picks deltas step by step starting from J=1 case
 i_delta_max = np.argmax(test_bbs)
-if i_delta_max == (num_possible_deltas - 1):
-    raise ValueError("Hit upper bound of deltas. Increase upper bound and rerun.")
+if i_delta_max == (all_possible_deltas.size - 1):
+    warn("Hit upper bound of deltas. Increase upper bound and rerun.")
 elif i_delta_max == 0:
-    raise ValueError("Hit lower bound of deltas. Decrease lower bound and rerun.")
+    warn("Hit lower bound of deltas. Decrease lower bound and rerun.")
 
 U_cur = U_Ns[i_delta_max]
 chosen_delta_inds.append(available_delta_inds.pop(i_delta_max))
@@ -144,10 +144,10 @@ for J in range(Jmax - 1):
 
     i_delta_max = np.argmax(test_bbs)
 
-    if available_delta_inds[i_delta_max] == (num_possible_deltas - 1):
-        raise ValueError("Hit upper bound of deltas. Increase upper bound and rerun.")
+    if available_delta_inds[i_delta_max] == (all_possible_deltas.size - 1):
+        warn("Hit upper bound of deltas. Increase upper bound and rerun.")
     elif available_delta_inds[i_delta_max] == 0:
-        raise ValueError("Hit lower bound of deltas. Decrease lower bound and rerun.")
+        warn("Hit lower bound of deltas. Decrease lower bound and rerun.")
 
     if interactive:
         figi, axi = plt.subplots(figsize=(8, 4), tight_layout=True)

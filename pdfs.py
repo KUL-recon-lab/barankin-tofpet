@@ -1,8 +1,10 @@
 """example pdfs for testing the Barankin bound"""
 
 import math
+from numba import njit
 
 
+@njit
 def exp_pdf(x: float, mu: float = 1.0) -> float:
     """exponential pdf
 
@@ -24,6 +26,7 @@ def exp_pdf(x: float, mu: float = 1.0) -> float:
     return p
 
 
+@njit
 def truncated_gauss_pdf(x: float, mu: float = 2.0, sig: float = 3.0) -> float:
     """truncate gaussian pdf (0 for x < 0)
 
@@ -47,6 +50,7 @@ def truncated_gauss_pdf(x: float, mu: float = 2.0, sig: float = 3.0) -> float:
     return p
 
 
+@njit
 def truncated_double_gauss_pdf(
     x: float,
     mu1: float = 7.0 / 100,
@@ -80,6 +84,7 @@ def truncated_double_gauss_pdf(
     return p
 
 
+@njit
 def _a(t: float, tau: float, t_tr: float, sig_tr: float) -> float:
     A = 0.5 * math.exp(-((t - t_tr) / tau) + 0.5 * sig_tr**2 / tau**2)
     B = math.erfc((t_tr + sig_tr**2 / tau - t) / (math.sqrt(2) * sig_tr))
@@ -88,6 +93,7 @@ def _a(t: float, tau: float, t_tr: float, sig_tr: float) -> float:
     return A * (B - C)
 
 
+@njit
 def bi_exp_model(
     t: float, tau_d: float, tau_r: float, t_tr: float, sig_tr: float
 ) -> float:
@@ -102,6 +108,7 @@ def bi_exp_model(
         )
 
 
+@njit
 def det1_pdf(t: float, alpha: float = 0.05) -> float:
 
     return alpha * bi_exp_model(t, 1.6, 0.35, 0.179, 0.081) + (
@@ -109,6 +116,7 @@ def det1_pdf(t: float, alpha: float = 0.05) -> float:
     ) * bi_exp_model(t, 40.0, 0.01, 0.179, 0.081)
 
 
+@njit
 def det2_pdf(t: float, alpha: float = 0.05) -> float:
 
     return alpha * bi_exp_model(t, 1.0, 0.01, 0.179, 0.081) + (
