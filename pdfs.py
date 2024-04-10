@@ -124,17 +124,26 @@ def det2_pdf(t: float, alpha: float = 0.05) -> float:
     ) * bi_exp_model(t, 20.0, 5.0, 0.179, 0.081)
 
 
+@njit
+def test_pdf(t: float, alpha: float = 0.05) -> float:
+
+    if t < 200:
+        return alpha * bi_exp_model(t, 1.0, 0.01, 0.179, 0.081) + (
+            1 - alpha
+        ) * bi_exp_model(t, 20.0, 5.0, 0.179, 0.081)
+    else:
+        return 0
+
+
 if __name__ == "__main__":
     import numpy as np
     import matplotlib.pyplot as plt
 
-    tt = np.linspace(0, 30, 10000)
+    tt = np.linspace(1e-5, 300, 10000)
 
-    p1 = np.array([det1_pdf(t) for t in tt])
     p2 = np.array([det2_pdf(t) for t in tt])
 
     fig, ax = plt.subplots()
-    ax.plot(tt, p1, ".-")
     ax.plot(tt, p2, ".-")
     ax.grid(ls=":")
     fig.show()
