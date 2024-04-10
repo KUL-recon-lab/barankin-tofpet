@@ -20,23 +20,23 @@ from utils import barankin_bound
 # the pdf does not need to be normalized
 pdf_lut_fname: str = "example_pdf.txt"
 # number of possible deltas
-num_possible_deltas: int = 80
+num_possible_deltas: int = 128
 # minimum delta to consider, None mean auto determined
-delta_min: float | None = None  #
+delta_min: float | None = None
 # maximum delta to consider, None mean auto determined
 delta_max: float | None = None
-# delta mode: "log" or "lin", whether to use log or linspace for deltas
-delta_mode: str = "log"
 # number of photons / samples
 N: int = 10
 # maximum J value
-Jmax: int = 32
+Jmax: int = 16
 # point beyond which pdf is essentially zero, None means auto determined
 x_zero: float | None = None
 # fraction of largest singular value for calculate of pseudo inverse
 rcond: float = 1e-12
 # show interactive plots on how J values are chose, requires user interaction
 interactive: bool = False
+# show condition number of U matrix
+show_cond_number: bool = False
 
 
 # %%
@@ -95,21 +95,16 @@ if delta_min is None:
 print(f"delta_min: {delta_min:.2E}")
 print(f"delta_max: {delta_max:.2E}")
 
-# setup the lin/log delta array
-if delta_mode == "lin":
-    all_possible_deltas: list[float] = np.linspace(
-        delta_min, delta_max, num_possible_deltas
-    )
-else:
-    all_possible_deltas: list[float] = np.logspace(
-        np.log10(delta_min), np.log10(delta_max), num_possible_deltas
-    )
+# setup the geometric deltas series
+all_possible_deltas: list[float] = np.logspace(
+    np.log10(delta_min), np.log10(delta_max), num_possible_deltas
+)
 
 upper_int_limit = x_zero + delta_max
 
 # %%
 # estimate the Barankin bound for the varinace
-bbs, chosen_deltas = barankin_bound(
+bbs, chosen_deltas, U = barankin_bound(
     normalized_pdf,
     all_possible_deltas,
     N,
@@ -117,6 +112,7 @@ bbs, chosen_deltas = barankin_bound(
     upper_int_limit,
     rcond=rcond,
     interactive=interactive,
+    show_cond_number=show_cond_number,
 )
 
 # %%

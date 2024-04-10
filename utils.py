@@ -45,7 +45,6 @@ def U_N_ij(
         the matrix element U_N_ij
     """
 
-    # eta: Callable[[float, float], float] = lambda t, delta: pdf(t - delta) / pdf(t) - 1
     integ: Callable[[float], float] = (
         lambda t: eta(t, delta_i, pdf) * eta(t, delta_j, pdf) * pdf(t)
     )
@@ -79,6 +78,7 @@ def barankin_bound(
     rcond: float = 1e-8,
     interactive: bool = False,
     verbose: bool = True,
+    show_cond_number: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     """_summary_
 
@@ -100,13 +100,19 @@ def barankin_bound(
         show interactive plots showing choice of next delta, by default False
     verbose : bool, optional
         print verbose output, by default True
+    show_cond_number : bool, optional
+        show condition number of U matrix, by default False
 
     Returns
     -------
-    tuple[np.ndarray, np.ndarray]
+    tuple[np.ndarray, np.ndarray, np.ndarray]
         Barankin bound for variance as function of J
         chosen delta values
+        U matrix
     """
+
+    if show_cond_number and not verbose:
+        verbose = True
 
     available_delta_inds = np.arange(all_possible_deltas.size).tolist()
     chosen_delta_inds = []
@@ -122,7 +128,9 @@ def barankin_bound(
         U_N_ij_lut[(j, j)] = U_N[0, 0]
         U_Ns.append(U_N)
 
-        test_bbs[j] = test_deltas.T @ (np.linalg.pinv(U_N, rcond=rcond) @ test_deltas)
+        test_bbs[j] = test_deltas.T @ (
+            np.linalg.pinv(U_N, rcond=rcond, hermitian=True) @ test_deltas
+        )
 
     # picks deltas step by step starting from J=1 case
     i_delta_max = np.argmax(test_bbs)
@@ -169,7 +177,7 @@ def barankin_bound(
             U_Ns.append(U_N)
             test_deltas = all_possible_deltas[np.concatenate((chosen_delta_inds, [j]))]
             test_bbs[i_j] = test_deltas.T @ (
-                np.linalg.pinv(U_N, rcond=rcond) @ test_deltas
+                np.linalg.pinv(U_N, rcond=rcond, hermitian=True) @ test_deltas
             )
 
         i_delta_max = np.argmax(test_bbs)
@@ -184,19 +192,27 @@ def barankin_bound(
             axi.plot(available_delta_inds, test_bbs)
             axi.axvline(available_delta_inds[i_delta_max], color="r", ls="--")
             figi.show()
-            tmp = input(">")
+            _ = input(">")
             plt.close()
 
         chosen_delta_inds.append(available_delta_inds.pop(i_delta_max))
         U_cur = U_Ns[i_delta_max]
         bbs.append(test_bbs[i_delta_max])
         if verbose:
+            if show_cond_number:
+                _, S, _ = np.linalg.svd(U_cur, hermitian=True)
+                cond_num = S.max() / S.min()
+                if cond_num > 1 / rcond:
+                    warnings.warn("Large condition number for matrix U.")
+                cond_str = f" U C-NUM: {cond_num:.2E}"
+            else:
+                cond_str = ""
             print(
-                f"J: {J:04} BB-VAR: {test_bbs[i_delta_max]:.4E} BB-STDDEV: {np.sqrt(test_bbs[i_delta_max]):.4E}",
+                f"J: {J:04} BB-VAR: {test_bbs[i_delta_max]:.4E} BB-STDDEV: {np.sqrt(test_bbs[i_delta_max]):.4E}{cond_str}",
                 end="\r",
             )
 
     if verbose:
         print()
 
-    return np.array(bbs), np.array(all_possible_deltas[chosen_delta_inds])
+    return np.array(bbs), np.array(all_possible_deltas[chosen_delta_inds]), U_cur
