@@ -139,7 +139,9 @@ if __name__ == "__main__":
     import numpy as np
     import matplotlib.pyplot as plt
 
-    tt = np.linspace(1e-5, 300, 10000)
+    tmax = 200
+
+    tt = np.linspace(0, tmax, tmax * 2000 + 1)
 
     p2 = np.array([det2_pdf(t) for t in tt])
 
