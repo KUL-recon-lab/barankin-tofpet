@@ -2,7 +2,8 @@ import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 from collections.abc import Callable
-from scipy.integrate import quad
+from scipy.integrate import quad, simpson
+from scipy.interpolate import interp1d
 
 
 def eta(t: float, delta: float, pdf: Callable[[float], float]):
@@ -79,8 +80,8 @@ def barankin_bound(
     interactive: bool = False,
     verbose: bool = True,
     show_cond_number: bool = False,
-) -> tuple[np.ndarray, np.ndarray]:
-    """_summary_
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Barankin bound for continuous normalized probability density function
 
     Parameters
     ----------
@@ -207,6 +208,147 @@ def barankin_bound(
                 cond_str = f" U C-NUM: {cond_num:.2E}"
             else:
                 cond_str = ""
+            print(
+                f"J: {J:04} BB-VAR: {test_bbs[i_delta_max]:.4E} BB-STDDEV: {np.sqrt(test_bbs[i_delta_max]):.4E}{cond_str}",
+                end="\r",
+            )
+
+    if verbose:
+        print()
+
+    return np.array(bbs), np.array(all_possible_deltas[chosen_delta_inds]), U_cur
+
+
+def barankin_bound_from_pdf_lut(
+    normalized_pdf_lut: np.ndarray,
+    all_possible_deltas: list[float],
+    N: int,
+    Jmax: int,
+    rcond: float = 1e-8,
+    verbose: bool = True,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Barankin bound for look up table based normalized probability density function
+
+    Parameters
+    ----------
+    normalized_pdf_lut : np.ndarray
+        2D array with first column as t and second column as normalized pdf(t)
+    all_possible_deltas : list[float]
+        list of deltas to consider to calculate Barankin bound
+    N : int
+        number of photons / samples
+    Jmax : int
+        maximum J (number of deltas) to consider
+    upper_int_limit : float
+        upper limit for evaluation of integrals
+    rcond : float, optional
+        see np.linalg.pinv, by default 1e-8
+    verbose : bool, optional
+        print verbose output, by default True
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray, np.ndarray]
+        Barankin bound for variance as function of J
+        chosen delta values
+        U matrix
+    """
+
+    # pefrom cubic interpolation of the normalized pdf lut for the calucation of etas
+    pdf = interp1d(
+        normalized_pdf_lut[:, 0],
+        normalized_pdf_lut[:, 1],
+        kind="cubic",
+        fill_value=0,
+        bounds_error=False,
+        assume_sorted=True,
+    )
+
+    etas = np.full(
+        (all_possible_deltas.size, normalized_pdf_lut.shape[0]), -1, dtype=float
+    )
+
+    t = normalized_pdf_lut[:, 0]
+    dt = t[1] - t[0]
+    p = normalized_pdf_lut[:, 1]
+
+    for i, d in enumerate(all_possible_deltas):
+        etas[i, 1:] = pdf(t[1:] - d) / pdf(t[1:]) - 1
+
+    available_delta_inds = np.arange(all_possible_deltas.size).tolist()
+    chosen_delta_inds = []
+
+    test_bbs = np.zeros(all_possible_deltas.size)
+    U_Ns = []
+
+    U_N_ij_lut = dict()
+
+    for j, delta in enumerate(all_possible_deltas):
+        test_deltas = np.array([delta])
+        U_N = np.array([[(simpson(p * etas[j, :] ** 2, dx=dt) + 1) ** N - 1]])
+        U_N_ij_lut[(j, j)] = U_N[0, 0]
+        U_Ns.append(U_N)
+
+        test_bbs[j] = test_deltas.T @ (
+            np.linalg.pinv(U_N, rcond=rcond, hermitian=True) @ test_deltas
+        )
+
+    # picks deltas step by step starting from J=1 case
+    i_delta_max = np.argmax(test_bbs)
+    if i_delta_max == (all_possible_deltas.size - 1):
+        warnings.warn("Hit upper bound of deltas. Increase upper bound and rerun.")
+    elif i_delta_max == 0:
+        warnings.warn("Hit lower bound of deltas. Decrease lower bound and rerun.")
+
+    U_cur = U_Ns[i_delta_max]
+    chosen_delta_inds.append(available_delta_inds.pop(i_delta_max))
+
+    bbs = [test_bbs[i_delta_max]]
+
+    for J in np.arange(2, Jmax + 1):
+        nd = len(chosen_delta_inds)
+        U_Ns = []
+        test_bbs = np.zeros(len(available_delta_inds))
+
+        for i_j, j in enumerate(available_delta_inds):
+            delta = all_possible_deltas[j]
+            U_N = np.zeros((nd + 1, nd + 1))
+            U_N[:nd, :nd] = U_cur
+
+            for k, i_del in enumerate(chosen_delta_inds):
+                i1 = min(j, i_del)
+                i2 = max(j, i_del)
+
+                if (i1, i2) in U_N_ij_lut:
+                    U_N[k, -1] = U_N_ij_lut[(i1, i2)]
+                else:
+                    U_N[k, -1] = (
+                        simpson(p * etas[j, :] * etas[i_del, :], dx=dt) + 1
+                    ) ** N - 1
+                    U_N_ij_lut[(i1, i2)] = U_N[k, -1]
+
+                U_N[-1, k] = U_N[k, -1]
+
+            U_N[-1, -1] = U_N_ij_lut[(j, j)]
+
+            U_Ns.append(U_N)
+            test_deltas = all_possible_deltas[np.concatenate((chosen_delta_inds, [j]))]
+            test_bbs[i_j] = test_deltas.T @ (
+                np.linalg.pinv(U_N, rcond=rcond, hermitian=True) @ test_deltas
+            )
+
+        i_delta_max = np.argmax(test_bbs)
+
+        if available_delta_inds[i_delta_max] == (all_possible_deltas.size - 1):
+            warnings.warn("Hit upper bound of deltas. Increase upper bound and rerun.")
+        elif available_delta_inds[i_delta_max] == 0:
+            warnings.warn("Hit lower bound of deltas. Decrease lower bound and rerun.")
+
+        chosen_delta_inds.append(available_delta_inds.pop(i_delta_max))
+        U_cur = U_Ns[i_delta_max]
+        bbs.append(test_bbs[i_delta_max])
+        if verbose:
+            cond_str = ""
             print(
                 f"J: {J:04} BB-VAR: {test_bbs[i_delta_max]:.4E} BB-STDDEV: {np.sqrt(test_bbs[i_delta_max]):.4E}{cond_str}",
                 end="\r",
