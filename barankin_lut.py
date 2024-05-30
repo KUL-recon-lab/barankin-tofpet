@@ -23,7 +23,7 @@ delta_min: float | None = None
 # maximum delta to consider, None mean auto determined
 delta_max: float | None = None
 # number of photons / samples
-N: int = 10
+N: int = 100
 # maximum J value
 Jmax: int = 32
 # point beyond which pdf is essentially zero, None means auto determined
