@@ -22,9 +22,9 @@ delta_min: float | None = None
 # maximum delta to consider, None mean auto determined
 delta_max: float | None = None
 # number of photons / samples
-N: int = 1000
+N: int = 100
 # maximum J value
-Jmax: int = 64
+Jmax: int = 32
 # point beyond which pdf is essentially zero, None means auto determined
 x_zero: float | None = None
 # fraction of largest singular value for calculate of pseudo inverse
