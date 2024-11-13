@@ -16,7 +16,7 @@ from utils import barankin_bound
 
 from pdfs import double_biexp_pdf
 
-# key word arguments for the pdf function
+# key word arguments for the (double_biexp_pdf) pdf function
 pdf_kwargs: dict = dict(
     alpha=0.004,  # fraction of emission where photon is Cerenkov
     tau_d_cer=3e-3,  # rise time of Cerenkov in ns
@@ -30,7 +30,7 @@ pdf_kwargs: dict = dict(
 pdf: Callable[[float], float] = functools.partial(double_biexp_pdf, **pdf_kwargs)
 
 # -------------
-# at the end of this cell, "pdf" must be a Callable mapping a plot onto a plot pdf(t[ns])
+# at the end of this cell, "pdf" must be a Callable mapping a float onto a float pdf(t[ns])
 # -------------
 
 
@@ -49,9 +49,9 @@ N: int = 900
 Jmax: int = 32
 # point beyond which pdf is essentially zero, None means auto determined
 x_zero: float | None = None
-# fraction of largest singular value for calculate of pseudo inverse
+# fraction of largest singular value for calculation of pseudo inverse
 rcond: float = 1e-12
-# show interactive plots on how J values are chose, requires user interaction
+# show interactive plots on how J values are chosen, requires user interaction
 interactive: bool = False
 # show condition number of U matrix
 show_cond_number: bool = False
@@ -77,7 +77,7 @@ stddev_pdf = np.sqrt(
 )
 
 # %%
-# plot the pdf
+# plot the (normalized) pdf on a linear and log x scale
 iplot_min = np.where(test_pdf >= 0.02 * test_pdf.max())[0].min()
 iplot_max = np.where(test_pdf >= 0.02 * test_pdf.max())[0].max() + 1
 
@@ -124,7 +124,7 @@ upper_int_limit = x_zero + delta_max
 
 # %%
 # estimate the Barankin bound for the varinace
-bbs, chosen_deltas, U = barankin_bound(
+bb_vars, chosen_deltas, U = barankin_bound(
     normalized_pdf,
     all_possible_deltas,
     N,
@@ -141,7 +141,7 @@ bbs, chosen_deltas, U = barankin_bound(
 Js = np.arange(1, Jmax + 1)
 
 fig3, ax3 = plt.subplots(1, 3, figsize=(12, 4), tight_layout=True)
-ax3[0].plot(Js, 1000 * np.sqrt(bbs), ".-")
+ax3[0].plot(Js, 1000 * np.sqrt(bb_vars), ".-")
 ax3[0].set_ylabel("BB std.dev. [ps]")
 ax3[1].semilogy(Js, chosen_deltas, ".-")
 ax3[2].semilogy(Js, sorted(chosen_deltas), ".-")
