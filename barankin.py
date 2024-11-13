@@ -16,7 +16,15 @@ from utils import barankin_bound
 from pdfs import bgo_det_pdf as det_pdf
 
 # key word arguments for the pdf function
-pdf_kwargs: dict = dict(alpha=0.004)
+pdf_kwargs: dict = dict(
+    alpha=0.004,
+    tau_d_cer=3e-3,
+    tau_r_cer=1e-3,
+    tau_d_sci=300.0,
+    tau_r_sci=1e-3,
+    t_tr=0.179,
+    sig_tr=0.081,
+)
 
 pdf: Callable[[float], float] = functools.partial(det_pdf, **pdf_kwargs)
 

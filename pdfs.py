@@ -146,7 +146,16 @@ def det2_pdf(t: float, alpha: float = 0.05) -> float:
 
 
 @njit
-def bgo_det_pdf(t: float, alpha: float = 0.004) -> float:
+def bgo_det_pdf(
+    t: float,
+    alpha: float = 0.004,
+    tau_d_cer: float = 3e-3,
+    tau_r_cer: float = 1e-3,
+    tau_d_sci: float = 300.0,
+    tau_r_sci: float = 1e-3,
+    t_tr: float = 0.179,
+    sig_tr: float = 0.081,
+) -> float:
     # approximating a BGO scintillator with slightly longer rise times to
     # avoid numerical problems
     # cerenkov 3ps decay time, 1ps rise time
@@ -155,9 +164,9 @@ def bgo_det_pdf(t: float, alpha: float = 0.004) -> float:
     # 81ps sigma of transfer time
     # alpha fraction of cerenkov photons
 
-    return alpha * bi_exp_model(t, 3 * (1e-3), 1 * (1e-3), 0.179, 0.081) + (
+    return alpha * bi_exp_model(t, tau_d_cer, tau_r_cer, t_tr, sig_tr) + (
         1 - alpha
-    ) * bi_exp_model(t, 300, 1 * (1e-3), 0.179, 0.081)
+    ) * bi_exp_model(t, tau_d_sci, tau_r_sci, t_tr, sig_tr)
 
 
 @njit
