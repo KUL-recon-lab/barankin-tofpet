@@ -3,14 +3,22 @@ from __future__ import annotations
 
 import numpy as np
 import matplotlib.pyplot as plt
+import functools
 
 from scipy.integrate import quad
-from scipy.interpolate import interp1d
 
 from collections.abc import Callable
-from pdfs import det2_pdf
 from utils import barankin_bound
 
+# %%
+# import your detector pdf function here as "det_pdf"
+# must be a Callable[[float], float]
+from pdfs import bgo_det_pdf as det_pdf
+
+# key word arguments for the pdf function
+pdf_kwargs: dict = dict(alpha=0.004)
+
+pdf: Callable[[float], float] = functools.partial(det_pdf, **pdf_kwargs)
 
 # %%
 # input parameters
@@ -22,7 +30,7 @@ delta_min: float | None = None
 # maximum delta to consider, None mean auto determined
 delta_max: float | None = None
 # number of photons / samples
-N: int = 100
+N: int = 900
 # maximum J value
 Jmax: int = 32
 # point beyond which pdf is essentially zero, None means auto determined
@@ -36,14 +44,10 @@ show_cond_number: bool = False
 
 
 # %%
-
-pdf: Callable[[float], float] = det2_pdf
-
-# %%
 # estimate the point beyond which the pdf is essentially zero (smaller than 1e-5)
 
 if x_zero is None:
-    xx = np.logspace(-8, 8, 1000)
+    xx = np.logspace(-8, 8, 10000)
     test_pdf = np.array([pdf(x) for x in xx])
     x_zero = xx[np.where(test_pdf >= 1e-5)[0].max() + 1]
 
@@ -60,17 +64,30 @@ stddev_pdf = np.sqrt(
 
 # %%
 # plot the pdf
-iplot_max = np.where(test_pdf >= 0.05 * test_pdf.max())[0].max() + 1
+iplot_min = np.where(test_pdf >= 0.02 * test_pdf.max())[0].min()
+iplot_max = np.where(test_pdf >= 0.02 * test_pdf.max())[0].max() + 1
 
-fig, ax = plt.subplots(1, 2, figsize=(8, 4), tight_layout=True, sharex=True)
-ax[0].plot(xx[:iplot_max], test_pdf[:iplot_max])
-ax[0].set_title(r"input pdf $\tilde{p}(x)$")
-ax[0].grid(ls=":")
-ax[0].set_xlabel("x")
-ax[1].plot(xx[:iplot_max], test_pdf[:iplot_max] / norm)
-ax[1].set_title(r"normalized pdf $p(x)$ with $\int_0^\infty p(x) dx = 1$")
-ax[1].grid(ls=":")
-ax[1].set_xlabel("x")
+fig, ax = plt.subplots(2, 2, figsize=(8, 8), tight_layout=True)
+ax[0, 0].plot(xx[iplot_min:iplot_max], test_pdf[iplot_min:iplot_max])
+ax[0, 0].set_title(r"input pdf $\tilde{p}(x)$", fontsize="medium")
+
+ax[1, 0].plot(xx[iplot_min:iplot_max], test_pdf[iplot_min:iplot_max] / norm)
+ax[1, 0].set_title(
+    r"normalized pdf $p(x)$ with $\int_0^\infty p(x) dx = 1$", fontsize="medium"
+)
+
+ax[0, 1].semilogx(xx[iplot_min:iplot_max], test_pdf[iplot_min:iplot_max])
+ax[0, 1].set_title(r"input pdf $\tilde{p}(x)$ - log x scale", fontsize="medium")
+
+ax[1, 1].semilogx(xx[iplot_min:iplot_max], test_pdf[iplot_min:iplot_max] / norm)
+ax[1, 1].set_title(
+    r"normalized pdf $p(x)$ with $\int_0^\infty p(x) dx = 1$ - log x scale",
+    fontsize="medium",
+)
+
+for axx in ax.ravel():
+    axx.grid(ls=":")
+    axx.set_xlabel("x [ns]")
 fig.show()
 
 # %%
@@ -110,7 +127,8 @@ bbs, chosen_deltas, U = barankin_bound(
 Js = np.arange(1, Jmax + 1)
 
 fig3, ax3 = plt.subplots(1, 3, figsize=(12, 4), tight_layout=True)
-ax3[0].plot(Js, np.sqrt(bbs), ".-")
+ax3[0].plot(Js, 1000 * np.sqrt(bbs), ".-")
+ax3[0].set_ylabel("BB std.dev. [ps]")
 ax3[1].semilogy(Js, chosen_deltas, ".-")
 ax3[2].semilogy(Js, sorted(chosen_deltas), ".-")
 for axx in ax3:

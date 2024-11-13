@@ -86,11 +86,32 @@ def truncated_double_gauss_pdf(
 
 @njit
 def _a(t: float, tau: float, t_tr: float, sig_tr: float) -> float:
-    A = 0.5 * math.exp(-((t - t_tr) / tau) + 0.5 * sig_tr**2 / tau**2)
-    B = math.erfc((t_tr + sig_tr**2 / tau - t) / (math.sqrt(2) * sig_tr))
-    C = math.erfc((t_tr + sig_tr**2 / tau) / (math.sqrt(2) * sig_tr))
 
-    return A * (B - C)
+    x1 = (t_tr + sig_tr * sig_tr / tau) / (math.sqrt(2) * sig_tr)
+    x2 = (t - t_tr - sig_tr * sig_tr / tau) / (math.sqrt(2) * sig_tr)
+
+    xmax = 26.0
+
+    if (x1 > xmax) and (x2 < -xmax):
+        a1 = (
+            sig_tr
+            * math.exp(-t_tr * t_tr / (2 * sig_tr * sig_tr) - t / tau)
+            / (math.sqrt(2 * math.pi) * (t_tr + sig_tr * sig_tr / tau))
+        )
+        a2 = (
+            sig_tr
+            * math.exp(-(t_tr - t) * (t_tr - t) / (2 * sig_tr * sig_tr))
+            / (math.sqrt(2 * math.pi) * (t_tr + sig_tr * sig_tr / tau - t))
+        )
+        a = a2 - a1
+    else:
+        a = (
+            0.5
+            * math.exp(-((t - t_tr) / tau) + 0.5 * sig_tr * sig_tr / (tau * tau))
+            * (math.erfc(-x2) - math.erfc(x1))
+        )
+
+    return a
 
 
 @njit
@@ -122,6 +143,21 @@ def det2_pdf(t: float, alpha: float = 0.05) -> float:
     return alpha * bi_exp_model(t, 1.0, 0.01, 0.179, 0.081) + (
         1 - alpha
     ) * bi_exp_model(t, 20.0, 5.0, 0.179, 0.081)
+
+
+@njit
+def bgo_det_pdf(t: float, alpha: float = 0.004) -> float:
+    # approximating a BGO scintillator with slightly longer rise times to
+    # avoid numerical problems
+    # cerenkov 3ps decay time, 1ps rise time
+    # scintillation 300ns decay time, 1ps rise time
+    # 179ps mean optical transfer time
+    # 81ps sigma of transfer time
+    # alpha fraction of cerenkov photons
+
+    return alpha * bi_exp_model(t, 3 * (1e-3), 1 * (1e-3), 0.179, 0.081) + (
+        1 - alpha
+    ) * bi_exp_model(t, 300, 1 * (1e-3), 0.179, 0.081)
 
 
 @njit
