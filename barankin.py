@@ -11,22 +11,28 @@ from collections.abc import Callable
 from utils import barankin_bound
 
 # %%
-# import your detector pdf function here as "det_pdf"
-# must be a Callable[[float], float]
-from pdfs import bgo_det_pdf as det_pdf
+# setup the pdf function
+# you can replace this cell with any other pdf function that is Callable[[float], float]
+
+from pdfs import double_biexp_pdf
 
 # key word arguments for the pdf function
 pdf_kwargs: dict = dict(
-    alpha=0.004,
-    tau_d_cer=3e-3,
-    tau_r_cer=1e-3,
-    tau_d_sci=300.0,
-    tau_r_sci=1e-3,
-    t_tr=0.179,
-    sig_tr=0.081,
+    alpha=0.004,  # fraction of emission where photon is Cerenkov
+    tau_d_cer=3e-3,  # rise time of Cerenkov in ns
+    tau_r_cer=1e-3,  # decay time of Cerenkov in ns
+    tau_d_sci=300.0,  # rise time of scintillation in ns
+    tau_r_sci=1e-3,  # decay time of scintillation in ns
+    t_tr=0.179,  # mean optical transfer time in ns
+    sig_tr=0.081,  # sigma of transfer time in ns
 )
 
-pdf: Callable[[float], float] = functools.partial(det_pdf, **pdf_kwargs)
+pdf: Callable[[float], float] = functools.partial(double_biexp_pdf, **pdf_kwargs)
+
+# -------------
+# at the end of this cell, "pdf" must be a Callable mapping a plot onto a plot pdf(t[ns])
+# -------------
+
 
 # %%
 # input parameters

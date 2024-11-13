@@ -146,7 +146,7 @@ def det2_pdf(t: float, alpha: float = 0.05) -> float:
 
 
 @njit
-def bgo_det_pdf(
+def double_biexp_pdf(
     t: float,
     alpha: float = 0.004,
     tau_d_cer: float = 3e-3,
