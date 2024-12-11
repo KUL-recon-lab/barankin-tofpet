@@ -18,11 +18,11 @@ from pdfs import double_biexp_pdf
 
 # key word arguments for the (double_biexp_pdf) pdf function
 pdf_kwargs: dict = dict(
-    alpha=0.004,  # fraction of emission where photon is Cerenkov
-    tau_d_cer=3e-3,  # rise time of Cerenkov in ns
-    tau_r_cer=1e-3,  # decay time of Cerenkov in ns
-    tau_d_sci=300.0,  # rise time of scintillation in ns
-    tau_r_sci=1e-3,  # decay time of scintillation in ns
+    alpha=0.0064,  # fraction of emission where photon is Cerenkov
+    tau_d_cer=0.01,  # decay time of Cerenkov in ns
+    tau_r_cer=0.005,  # rise time of Cerenkov in ns
+    tau_d_sci=300.0,  # decay time of scintillation in ns
+    tau_r_sci=0.05,  # rise time of scintillation in ns
     t_tr=0.179,  # mean optical transfer time in ns
     sig_tr=0.081,  # sigma of transfer time in ns
 )
@@ -44,7 +44,7 @@ delta_min: float | None = None
 # maximum delta to consider, None mean auto determined
 delta_max: float | None = None
 # number of photons / samples
-N: int = 900
+N: int = 500
 # maximum J value
 Jmax: int = 32
 # point beyond which pdf is essentially zero, None means auto determined
